@@ -1,17 +1,23 @@
 FROM docker.io/library/golang:alpine as builder
 
-ARG PB_BUILD_VERSION
+ARG BUILD_VERSION=0.1.0
 
-WORKDIR /build
-
+# build server
+WORKDIR /server
 COPY . .
-
 RUN set -ex \
 	&& apk add --no-cache build-base \
-	&& go mod download \
-	&& go mod verify \
-	&& PB_BUILD_VERSION="$PB_BUILD_VERSION" make build \
-	&& chmod +x /build/out/pushbits
+	&& go mod download && go mod verify \
+	&& PB_BUILD_VERSION="$BUILD_VERSION" make build \
+	&& chmod +x /server/out/pushbits
+
+# build cli
+RUN apk add --no-cache git \
+    && git clone https://github.com/nonedotone/pushbits-cli.git /cli \
+    && cd /cli && go mod download && go mod verify \
+    && PBCLI_BUILD_VERSION="$BUILD_VERSION" make build \
+    && chmod +x /cli/out/pbcli
+
 
 FROM docker.io/library/alpine
 
@@ -24,7 +30,8 @@ EXPOSE 8080
 WORKDIR /app
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /build/out/pushbits ./run
+COPY --from=builder /server/out/pushbits ./pushbits
+COPY --from=builder /cli/out/pbcli ./pbcli
 
 RUN set -ex \
 	&& apk add --no-cache ca-certificates curl \
@@ -37,4 +44,4 @@ USER ${USER_ID}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD curl --fail http://localhost:$PUSHBITS_HTTP_PORT/health || exit 1
 
-ENTRYPOINT ["./run"]
+ENTRYPOINT ["./pushbits"]
