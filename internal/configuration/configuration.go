@@ -2,6 +2,8 @@ package configuration
 
 import (
 	"github.com/jinzhu/configor"
+	"log"
+	"os"
 )
 
 // testMode indicates if the package is run in test mode
@@ -66,10 +68,14 @@ type Configuration struct {
 }
 
 func configFiles() []string {
-	if testMode {
-		return []string{"config_unittest.yml"}
+	configPath := os.Getenv("CONFIG_PATH")
+	if testMode && len(configPath) == 0 {
+		configPath = "config_unittest.yml"
+	} else if len(configPath) == 0 {
+		configPath = "config.yml"
 	}
-	return []string{"config.yml"}
+	log.Println("CONFIG_PATH", configPath)
+	return []string{configPath}
 }
 
 // Get returns the configuration extracted from env variables or config file.
