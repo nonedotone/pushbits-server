@@ -30,18 +30,19 @@ EXPOSE 8080
 WORKDIR /app
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /server/out/pushbits ./pushbits
-COPY --from=builder /cli/out/pbcli ./pbcli
+COPY --from=builder /server/out/pushbits /usr/bin/pushbits
+COPY --from=builder /cli/out/pbcli /usr/bin/pbcli
 
 RUN set -ex \
 	&& apk add --no-cache ca-certificates curl \
 	&& update-ca-certificates \
 	&& mkdir -p /data \
 	&& ln -s /data/pushbits.db /app/pushbits.db \
-	&& ln -s /data/config.yml /app/config.yml
+	&& ln -s /data/config.yml /app/config.yml \
+    && chmod +x /usr/bin/pushbits && chmod +x /usr/bin/pushbits
 
 USER ${USER_ID}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD curl --fail http://localhost:$PUSHBITS_HTTP_PORT/health || exit 1
 
-ENTRYPOINT ["./pushbits"]
+ENTRYPOINT ["/usr/bin/pushbits"]
